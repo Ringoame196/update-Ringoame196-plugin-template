@@ -10,7 +10,7 @@ val fullVersion = "$minecraftVersion-$pluginVersion"
 plugins {
     kotlin("jvm") version "2.0.20"
     id("com.gradleup.shadow") version "8.3.7"
-    id("de.eldoria.plugin-yml.paper") version "0.9.0"
+    id("net.minecrell.plugin-yml.bukkit") version "0.6.0"
     id("io.gitlab.arturbosch.detekt") version "1.23.6"
     id("org.jmailen.kotlinter") version "4.4.0"
 }
@@ -23,7 +23,6 @@ repositories {
     maven("https://repo.papermc.io/repository/maven-public/")
 }
 
-// ── 【ここを追加！】Paper API への依存関係 ──
 dependencies {
     compileOnly("io.papermc.paper:paper-api:$minecraftVersion-R0.1-SNAPSHOT")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
@@ -38,6 +37,8 @@ detekt {
 }
 
 tasks.withType<ShadowJar> {
+    archiveBaseName.set(project.name)
+    archiveVersion.set("")
     archiveClassifier.set("")
     relocate("kotlin", "${project.group}.libs.kotlin")
     relocate("org.intellij.lang.annotations", "${project.group}.libs.org.intellij.lang.annotations")
@@ -70,7 +71,7 @@ val deployPlugin by tasks.registering {
             return@doLast
         }
 
-        val jarFile = layout.buildDirectory.file("libs/${project.name}-$fullVersion.jar").get().asFile
+        val jarFile = layout.buildDirectory.file("libs/${project.name}.jar").get().asFile
         if (jarFile.exists()) {
             copy {
                 from(jarFile)
@@ -115,14 +116,13 @@ kotlin {
     jvmToolchain(17)
 }
 
-paper {
-    main = "${project.group}.main.Main"
+bukkit {
+    main = "com.github.ringoame196.Main"
     apiVersion = "1." + minecraftVersion.split(".")[1]
     author = "ringoame196"
     website = "https://github.com/ringoame196-s-mcPlugin"
     description = "Minecraft plugin template"
 
-    // パーミッションの設定例
     permissions {
         register("${project.group}.command.sample") {
             description = "サンプルコマンドを実行する権限"
