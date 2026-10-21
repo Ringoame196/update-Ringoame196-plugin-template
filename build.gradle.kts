@@ -153,3 +153,46 @@ tasks.register("printVersion") {
         println(fullVersion)
     }
 }
+
+tasks.register<SetupTask>("setup") {
+    group = "setup"
+    description = "setupタスク"
+}
+
+open class SetupTask : DefaultTask() {
+    @TaskAction
+    fun setup() {
+        val targetBranch = "developer"
+
+        println("Git ブランチを確認・作成しています: $targetBranch ...")
+
+        // `-b` オプションをつけることで、存在しない場合は作成して切り替えます
+        val process = ProcessBuilder("git", "checkout", "-b", targetBranch)
+            .redirectErrorStream(true)
+            .start()
+
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        val exitCode = process.waitFor()
+
+        if (exitCode == 0) {
+            println("Successfully switched/created branch to $targetBranch")
+            println(output)
+        } else {
+            // すでにローカルにそのブランチが存在している場合のフォールバック
+            if (output.contains("already exists")) {
+                println("ブランチ '$targetBranch' は既に存在するため、通常切り替えを試みます...")
+                val fallbackProcess = ProcessBuilder("git", "checkout", targetBranch)
+                    .redirectErrorStream(true)
+                    .start()
+                val fallbackOutput = fallbackProcess.inputStream.bufferedReader().use { it.readText() }
+                if (fallbackProcess.waitFor() == 0) {
+                    println("Successfully switched to existing branch: $targetBranch")
+                } else {
+                    logger.error("ブランチの切り替えに失敗しました:\n$fallbackOutput")
+                }
+            } else {
+                logger.error("ブランチの処理に失敗しました (Exit code: $exitCode):\n$output")
+            }
+        }
+    }
+}
