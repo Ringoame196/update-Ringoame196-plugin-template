@@ -124,11 +124,21 @@ bukkit {
     description = "Minecraft plugin template"
 
     permissions {
-        register("${project.group}.command.sample") {
+        register("${project.name}.op") {
             description = "サンプルコマンドを実行する権限"
             default = BukkitPluginDescription.Permission.Default.OP
         }
     }
+
+    /*
+    commands {
+        register("sample") {
+            description = "samples's Command"
+            permission = "${project.name}.admin"
+            usage = "/sample"
+        }
+    }
+     */
 }
 
 tasks {
