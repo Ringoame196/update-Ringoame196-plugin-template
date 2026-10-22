@@ -157,8 +157,8 @@ open class SetupTask : DefaultTask() {
         val targetBranch = "developer"
 
         println("Git ブランチを確認・作成しています: $targetBranch ...")
-
-        val process = ProcessBuilder("git", "checkout", "-b", targetBranch)
+        
+        val process = ProcessBuilder("git", "switch", "-c", targetBranch)
             .redirectErrorStream(true)
             .start()
 
@@ -169,9 +169,10 @@ open class SetupTask : DefaultTask() {
             println("Successfully switched/created branch to $targetBranch")
             println(output)
         } else {
-            if (output.contains("already exists")) {
-                println("ブランチ '$targetBranch' は既に存在するため、通常切り替えを試みます...")
-                val fallbackProcess = ProcessBuilder("git", "checkout", targetBranch)
+            // すでにローカルにそのブランチが存在している場合は通常切り替え（git switch）
+            if (output.contains("already exists") || output.contains("既に存在")) {
+                println("ブランチ '$targetBranch' は既に存在するため、切り替えを試みます...")
+                val fallbackProcess = ProcessBuilder("git", "switch", targetBranch)
                     .redirectErrorStream(true)
                     .start()
                 val fallbackOutput = fallbackProcess.inputStream.bufferedReader().use { it.readText() }
