@@ -5,6 +5,9 @@ import java.net.URL
 
 val minecraftVersion: String by project
 val pluginVersion: String by project
+val deployPath: String by project
+val serverIp: String by project
+val serverPort: String by project
 val fullVersion = "$minecraftVersion-$pluginVersion"
 
 plugins {
@@ -56,7 +59,7 @@ val deployPlugin by tasks.registering {
     val copyDirPath = if (isCI) {
         layout.buildDirectory.dir("deploy").get().asFile.path
     } else {
-        "Z:/minecraft/TwitterServer/plugins/"
+        deployPath
     }
     val targetDir = file(copyDirPath)
 
@@ -84,9 +87,8 @@ val deployPlugin by tasks.registering {
         }
 
         // サーバーへのリロード通知API呼び出し
-        val port = 25585
-        val ip = "ringoame-server"
-        val apiUrl = "http://$ip:$port/plugin?name=${project.name}"
+        val port = serverPort.toInt()
+        val apiUrl = "http://$serverIp:$port/plugin?name=${project.name}"
 
         try {
             val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
@@ -125,20 +127,10 @@ bukkit {
 
     permissions {
         register("${project.name}.op") {
-            description = "サンプルコマンドを実行する権限"
+            description = "op権限"
             default = BukkitPluginDescription.Permission.Default.OP
         }
     }
-
-    /*
-    commands {
-        register("sample") {
-            description = "samples's Command"
-            permission = "${project.name}.admin"
-            usage = "/sample"
-        }
-    }
-     */
 }
 
 tasks {
@@ -166,7 +158,6 @@ open class SetupTask : DefaultTask() {
 
         println("Git ブランチを確認・作成しています: $targetBranch ...")
 
-        // `-b` オプションをつけることで、存在しない場合は作成して切り替えます
         val process = ProcessBuilder("git", "checkout", "-b", targetBranch)
             .redirectErrorStream(true)
             .start()
@@ -178,7 +169,6 @@ open class SetupTask : DefaultTask() {
             println("Successfully switched/created branch to $targetBranch")
             println(output)
         } else {
-            // すでにローカルにそのブランチが存在している場合のフォールバック
             if (output.contains("already exists")) {
                 println("ブランチ '$targetBranch' は既に存在するため、通常切り替えを試みます...")
                 val fallbackProcess = ProcessBuilder("git", "checkout", targetBranch)
