@@ -138,10 +138,19 @@ bukkit {
     website = "https://github.com/ringoame196-s-mcPlugin"
     description = "Minecraft plugin"
 
+    val pluginPermission = "{pluginName}.admin"
     permissions {
-        register("${project.name}.op") {
-            description = "op権限"
+        register(pluginPermission) {
+            description = "admin権限"
             default = BukkitPluginDescription.Permission.Default.OP
+        }
+    }
+
+    commands {
+        register("command") {
+            description = "コマンド"
+            permission = pluginPermission
+            usage = "/command"
         }
     }
 }
