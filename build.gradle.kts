@@ -15,9 +15,11 @@ val sharedProps = Properties().apply {
     }
 }
 
-val deployPath = sharedProps.getProperty("deployPath")
-val serverIp = sharedProps.getProperty("serverIp")
-val serverPort = sharedProps.getProperty("serverPort")
+private val deployPath = sharedProps.getProperty("deployPath")
+private val privateKeyPath = sharedProps.getProperty("privateKeyPath")
+private val serverIp = sharedProps.getProperty("serverIp")
+private val serverPort = sharedProps.getProperty("serverPort")
+private val serverUser = sharedProps.getProperty("serverUser")
 
 plugins {
     kotlin("jvm") version "2.0.20"
@@ -57,27 +59,46 @@ tasks.withType<ShadowJar> {
     relocate("org.jetbrains.annotations", "${project.group}.libs.org.jetbrains.annotations")
 }
 
-fun Logger.copyJarToTarget(
-    project: Project,
-    targetDir: java.io.File
+fun Logger.scpJarToTarget(
+    jarFile: File,
+    serverUser: String,
+    serverIp: String,
+    sshKeyPath: String,
+    remoteDir: String
 ): Boolean {
-    val jarFile = project.layout.buildDirectory.file("libs/${project.name}.jar").get().asFile
     if (!jarFile.exists()) {
-        error("コピー対象のJARファイルが見つかりません: ${jarFile.path}")
+        error("転送対象のJARファイルが見つかりません: ${jarFile.path}")
         return false
     }
 
-    if (!targetDir.exists() || !targetDir.isDirectory) {
-        warn("自動コピーをスキップしました: ディレクトリが存在しません (${targetDir.path})")
+    val remoteDestination = "$serverUser@$serverIp:$remoteDir"
+    lifecycle("SCPでリモートサーバーへ転送中: ${jarFile.name} -> $remoteDestination")
+
+    try {
+        val process = ProcessBuilder(
+            "scp",
+            "-i", sshKeyPath,
+            "-o", "StrictHostKeyChecking=no",
+            jarFile.absolutePath,
+            remoteDestination
+        )
+            .redirectErrorStream(true)
+            .start()
+
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        val exitCode = process.waitFor()
+
+        if (exitCode == 0) {
+            lifecycle("SCP転送が成功しました！")
+            return true
+        } else {
+            error("SCP転送に失敗しました (Exit code: $exitCode):\n$output")
+            return false
+        }
+    } catch (e: Exception) {
+        error("SCP実行中にエラーが発生しました: ${e.message}")
         return false
     }
-
-    project.copy {
-        from(jarFile)
-        into(targetDir)
-    }
-    lifecycle("プラグインをコピーしました: ${jarFile.name} -> ${targetDir.path}")
-    return true
 }
 
 fun Logger.notifyServerApi(serverIp: String, serverPort: String, projectName: String) {
@@ -120,7 +141,6 @@ val deployPlugin by tasks.registering {
     } else {
         deployPath ?: layout.buildDirectory.dir("dummy").get().asFile.path
     }
-    val targetDir = file(copyDirPath)
 
     doLast {
         if (deployPath.isNullOrBlank() || serverIp.isNullOrBlank() || serverPort.isNullOrBlank()) {
@@ -133,7 +153,8 @@ val deployPlugin by tasks.registering {
             return@doLast
         }
 
-        val copySuccess = logger.copyJarToTarget(project, targetDir)
+        val jarFile = layout.buildDirectory.file("libs/${project.name}.jar").get().asFile
+        val copySuccess = logger.scpJarToTarget(jarFile,serverUser,serverIp,privateKeyPath,deployPath)
         if (!copySuccess) {
             return@doLast
         }
